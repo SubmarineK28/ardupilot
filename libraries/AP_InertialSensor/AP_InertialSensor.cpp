@@ -2755,13 +2755,54 @@ void AP_InertialSensor::set_imu_out_uart(AP_HAL::UARTDriver *_uart)
 {
     uart.imu_out_uart = _uart;
     uart.counter = 0;
+    uart.last_send_us = 0;
 }
 
 /*
-  send IMU delta-angle and delta-velocity to a UART
+  send IMU data to a UART. By default this is the legacy binary
+  delta-angle / delta-velocity packet, but boards can switch to a
+  raw accel/gyro text stream with AP_SERIALMANAGER_IMUOUT_RAW_ENABLED.
  */
 void AP_InertialSensor::send_uart_data(void)
 {
+#if AP_SERIALMANAGER_IMUOUT_RAW_ENABLED
+    if (get_accel_count() == 0 || get_gyro_count() == 0) {
+        return;
+    }
+
+    const uint32_t now_us = AP_HAL::micros();
+    if ((now_us - uart.last_send_us) < AP_SERIALMANAGER_IMUOUT_INTERVAL_US) {
+        return;
+    }
+
+    const Vector3f &accel = get_accel();
+    const Vector3f &gyro = get_gyro();
+    char line[160];
+    const int length = hal.util->snprintf(
+        line,
+        sizeof(line),
+        "IMU,%lu,%u,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f\r\n",
+        static_cast<unsigned long>(now_us),
+        static_cast<unsigned>(uart.counter),
+        static_cast<double>(accel.x),
+        static_cast<double>(accel.y),
+        static_cast<double>(accel.z),
+        static_cast<double>(gyro.x),
+        static_cast<double>(gyro.y),
+        static_cast<double>(gyro.z));
+
+    if (length <= 0 || static_cast<size_t>(length) >= sizeof(line)) {
+        return;
+    }
+    if (uart.imu_out_uart->txspace() < length) {
+        return;
+    }
+
+    uart.imu_out_uart->write(reinterpret_cast<const uint8_t *>(line), length);
+    uart.counter++;
+    uart.last_send_us = now_us;
+    return;
+#else
     struct {
         uint16_t magic = 0x29c4;
         uint16_t length;
@@ -2789,6 +2830,7 @@ void AP_InertialSensor::send_uart_data(void)
     data.crc = crc_xmodem((const uint8_t *)&data, sizeof(data)-sizeof(uint16_t));
 
     uart.imu_out_uart->write((const uint8_t *)&data, sizeof(data));
+#endif
 }
 #endif // AP_SERIALMANAGER_IMUOUT_ENABLED
 

@@ -62,7 +62,7 @@ public:
 
     // make this quaternion equivalent to the supplied matrix
     void		from_rotation_matrix(const Matrix3<T> &m);
-
+  
     // create a quaternion from a given rotation
     void        from_rotation(enum Rotation rotation);
 

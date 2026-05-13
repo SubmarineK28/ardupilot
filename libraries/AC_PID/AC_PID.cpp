@@ -232,7 +232,7 @@ float AC_PID::update_all(float target, float measurement, float dt, bool limit, 
 
         // Apply target filters
         const float target_last = _target;
-#if AP_FILTER_ENABLED
+#if AP_FILTER_ENABLEDто есть ПИД выдает произволь
         if (_target_notch != nullptr) {
             // Allocate and set up target notch filter
             target = _target_notch->apply(target);

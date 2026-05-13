@@ -323,6 +323,7 @@ public:
 
     struct {
         uint16_t counter;
+        uint32_t last_send_us;
         AP_HAL::UARTDriver *imu_out_uart;
     } uart;
 #endif // AP_SERIALMANAGER_IMUOUT_ENABLED
